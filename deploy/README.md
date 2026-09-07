@@ -47,15 +47,7 @@ QABANK_ACCESS_TOKEN=上一步生成的随机令牌
 QABANK_REQUIRE_AUTH=true
 ```
 
-模型 API 可暂时留空：
-
-```env
-DASHSCOPE_API_KEY=
-QABANK_ENABLE_SEMANTIC=false
-QABANK_ENABLE_LLM_EXPLANATION=false
-```
-
-留空时原题精确匹配、FTS 和模糊检索仍然工作。需要语义检索或辅助说明时，再填写 API Key。
+本项目不调用大模型，不需要配置任何模型 API Key。
 
 ## 4. 启动容器
 
@@ -87,29 +79,7 @@ curl -I https://quiz.insightpilot-ai.top
 
 云安全组只需要保持 `80` 和 `443` 开放，不要开放 `8503`。
 
-## 6. 可选语义索引和 LLM 辅助说明
-
-在 `.env` 填写 `DASHSCOPE_API_KEY` 后：
-
-```bash
-docker compose exec quiz python scripts/build_embeddings.py
-nano .env
-```
-
-设置：
-
-```env
-QABANK_ENABLE_SEMANTIC=true
-QABANK_ENABLE_LLM_EXPLANATION=true
-```
-
-重新创建容器以加载环境变量：
-
-```bash
-docker compose up -d --force-recreate quiz
-```
-
-## 7. 更新代码
+## 6. 更新代码
 
 ```bash
 cd /opt/political-theory-qa
@@ -119,9 +89,9 @@ docker compose ps
 docker compose logs --tail=100 quiz
 ```
 
-不要执行 `docker compose down -v`，否则会删除运行数据库和可选语义索引。题库原 DOCX 位于宿主机 `source/`，不会因容器重建而丢失。
+不要执行 `docker compose down -v`，否则会删除运行数据库。题库原 DOCX 位于宿主机 `source/`，不会因容器重建而丢失。
 
-## 8. 加入现有统一入口页
+## 7. 加入现有统一入口页
 
 应用上线验证后，在 `/opt/insightpilot/portal/index.html` 增加指向
 `https://quiz.insightpilot-ai.top` 的项目入口，再执行：

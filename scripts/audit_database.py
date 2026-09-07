@@ -27,7 +27,6 @@ def main() -> int:
         "question_count": database.count(),
         "type_counts": database.type_counts(),
         **database.duplicate_summary(),
-        "embedding_count": database.embedding_count(),
         "fts_enabled": database.fts_enabled(),
         "conflicts": [dict(row) for row in conflicts],
     }

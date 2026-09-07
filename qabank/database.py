@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from array import array
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -37,12 +36,6 @@ CREATE TABLE IF NOT EXISTS metadata (
     value TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS embeddings (
-    question_id INTEGER PRIMARY KEY REFERENCES questions(id) ON DELETE CASCADE,
-    model TEXT NOT NULL,
-    dimensions INTEGER NOT NULL,
-    vector BLOB NOT NULL
-);
 """
 
 
@@ -99,7 +92,6 @@ class QuestionDatabase:
         ]
         with self.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute("DELETE FROM embeddings")
             connection.execute("DELETE FROM questions")
             connection.executemany(
                 """INSERT INTO questions(
@@ -150,17 +142,6 @@ class QuestionDatabase:
         with self.connect() as connection:
             rows = connection.execute("SELECT * FROM questions ORDER BY id").fetchall()
         return [self._row_to_question(row) for row in rows]
-
-    def questions_by_ids(self, question_ids: list[int]) -> list[Question]:
-        if not question_ids:
-            return []
-        placeholders = ",".join("?" for _ in question_ids)
-        with self.connect() as connection:
-            rows = connection.execute(
-                f"SELECT * FROM questions WHERE id IN ({placeholders})", question_ids
-            ).fetchall()
-        by_id = {int(row["id"]): self._row_to_question(row) for row in rows}
-        return [by_id[item] for item in question_ids if item in by_id]
 
     def question(self, question_id: int) -> Question | None:
         with self.connect() as connection:
@@ -234,43 +215,3 @@ class QuestionDatabase:
             "conflicting_answer_groups": int(conflicting_groups),
             "ambiguous_record_groups": int(ambiguous_record_groups),
         }
-
-    def replace_embeddings(
-        self, model: str, vectors: list[tuple[int, list[float]]]
-    ) -> None:
-        rows = []
-        for question_id, vector in vectors:
-            payload = array("f", (float(value) for value in vector))
-            rows.append((question_id, model, len(payload), payload.tobytes()))
-        with self.connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            connection.execute("DELETE FROM embeddings")
-            connection.executemany(
-                "INSERT INTO embeddings(question_id,model,dimensions,vector) VALUES(?,?,?,?)",
-                rows,
-            )
-            connection.execute(
-                "INSERT OR REPLACE INTO metadata(key,value) VALUES('embedding_model',?)",
-                (model,),
-            )
-            connection.commit()
-
-    def embeddings(self) -> tuple[str | None, list[tuple[int, list[float]]]]:
-        with self.connect() as connection:
-            model_row = connection.execute(
-                "SELECT value FROM metadata WHERE key='embedding_model'"
-            ).fetchone()
-            rows = connection.execute(
-                "SELECT question_id,dimensions,vector FROM embeddings ORDER BY question_id"
-            ).fetchall()
-        vectors = []
-        for row in rows:
-            values = array("f")
-            values.frombytes(row["vector"])
-            if len(values) == int(row["dimensions"]):
-                vectors.append((int(row["question_id"]), list(values)))
-        return (model_row[0] if model_row else None), vectors
-
-    def embedding_count(self) -> int:
-        with self.connect() as connection:
-            return int(connection.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0])

@@ -6,7 +6,6 @@ from .config import Settings
 from .database import QuestionDatabase
 from .models import SearchHit, SearchResult
 from .parser import parse_docx
-from .providers import ModelProvider
 from .retrieval import QuestionRetriever
 
 
@@ -21,11 +20,8 @@ class QuestionAnswerService:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings.from_env()
         self.database = QuestionDatabase(self.settings.database_path)
-        self.provider = ModelProvider(self.settings)
         self._ensure_database()
-        self.retriever = QuestionRetriever(
-            self.database, self.settings, provider=self.provider
-        )
+        self.retriever = QuestionRetriever(self.database, self.settings)
 
     def _ensure_database(self) -> None:
         if self.database.count() > 0:
@@ -61,7 +57,6 @@ class QuestionAnswerService:
             "match_method": hit.match_method,
             "score": hit.score,
             "lexical_score": hit.lexical_score,
-            "semantic_score": hit.semantic_score,
         }
 
     def ask(self, query: str, *, limit: int = 5) -> dict[str, Any]:
@@ -81,22 +76,10 @@ class QuestionAnswerService:
         )
         return payload
 
-    def explain(self, question_id: int) -> str:
-        if not self.settings.enable_llm_explanation:
-            raise RuntimeError("LLM 辅助说明未启用")
-        item = self.database.question(question_id)
-        if item is None:
-            raise ValueError("题目不存在")
-        return self.provider.explain(item)
-
     def stats(self) -> dict[str, Any]:
         return {
             "question_count": self.database.count(),
             "type_counts": self.database.type_counts(),
             "duplicates": self.database.duplicate_summary(),
             "fts_enabled": self.database.fts_enabled(),
-            "embedding_count": self.database.embedding_count(),
-            "semantic_enabled": self.settings.enable_semantic,
-            "llm_configured": self.provider.configured,
-            "llm_explanation_enabled": self.settings.enable_llm_explanation,
         }

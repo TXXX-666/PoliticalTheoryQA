@@ -74,18 +74,7 @@ with st.sidebar:
     st.divider()
     candidate_count = st.slider("候选题数量", 3, 10, 5)
     show_details = st.toggle("显示检索详情", value=False)
-    use_explanation = st.toggle(
-        "生成辅助说明",
-        value=False,
-        disabled=not (
-            stats["llm_configured"] and stats["llm_explanation_enabled"]
-        ),
-        help="标准答案始终来自题库。辅助说明由模型生成，不属于题库原文。",
-    )
-    if stats["semantic_enabled"]:
-        st.caption(f"语义索引：{stats['embedding_count']} 条")
-    else:
-        st.caption("当前使用精确匹配和全文/模糊检索")
+    st.caption("精确匹配 + FTS5 + 模糊检索")
     if settings.require_auth and st.button("退出登录"):
         st.session_state.clear()
         st.rerun()
@@ -119,7 +108,6 @@ if submitted:
             query, limit=candidate_count
         )
         st.session_state.pop("selected_question_id", None)
-        st.session_state.pop("explanation", None)
 
 
 def render_answer(answer: dict) -> None:
@@ -165,7 +153,6 @@ if result:
         )
         if st.button("确认并查看答案", type="primary"):
             st.session_state["selected_question_id"] = selected_id
-            st.session_state.pop("explanation", None)
         if st.session_state.get("selected_question_id"):
             selected_answer = service.answer_question_id(
                 int(st.session_state["selected_question_id"])
@@ -174,28 +161,6 @@ if result:
                 render_answer(selected_answer)
     else:
         render_answer(result["answer"])
-
-    selected_answer = result.get("answer")
-    if result["status"] == "ambiguous" and st.session_state.get(
-        "selected_question_id"
-    ):
-        selected_answer = service.answer_question_id(
-            int(st.session_state["selected_question_id"])
-        )
-
-    if selected_answer and use_explanation:
-        if st.button("生成辅助说明"):
-            with st.spinner("正在生成辅助说明..."):
-                try:
-                    st.session_state["explanation"] = service.explain(
-                        int(selected_answer["question_id"])
-                    )
-                except Exception as exc:
-                    st.error(f"辅助说明生成失败：{exc}")
-        if st.session_state.get("explanation"):
-            st.subheader("辅助说明")
-            st.write(st.session_state["explanation"])
-            st.caption("此说明由大模型生成，不属于题库原文；标准答案以题库记录为准。")
 
     if show_details:
         with st.expander("检索诊断", expanded=True):
@@ -210,7 +175,6 @@ if result:
                             "score": round(item["score"], 4),
                             "method": item["match_method"],
                             "lexical": round(item["lexical_score"], 4),
-                            "semantic": item["semantic_score"],
                         }
                         for item in result["candidates"]
                     ],

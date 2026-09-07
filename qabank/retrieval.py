@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-import numpy as np
 from rapidfuzz import fuzz, process
 
 from .config import Settings
 from .database import QuestionDatabase
 from .models import Question, SearchHit, SearchResult
 from .normalization import normalize_question
-from .providers import ModelProvider
 
 
 class QuestionRetriever:
@@ -17,11 +15,9 @@ class QuestionRetriever:
         self,
         database: QuestionDatabase,
         settings: Settings,
-        provider: ModelProvider | None = None,
     ):
         self.database = database
         self.settings = settings
-        self.provider = provider or ModelProvider(settings)
         self._questions: list[Question] = []
         self._by_id: dict[int, Question] = {}
         self._choices: dict[int, str] = {}
@@ -59,32 +55,6 @@ class QuestionRetriever:
             for question_id, score in ranked[:limit]
         ]
 
-    def _semantic_scores(self, normalized: str) -> dict[int, float]:
-        if not self.settings.enable_semantic or not self.provider.configured:
-            return {}
-        model, rows = self.database.embeddings()
-        if not rows or model != self.settings.embedding_model:
-            return {}
-        query = np.asarray(self.provider.embeddings([normalized])[0], dtype=np.float32)
-        query_norm = float(np.linalg.norm(query))
-        if not query_norm:
-            return {}
-        ids = [item[0] for item in rows]
-        matrix = np.asarray([item[1] for item in rows], dtype=np.float32)
-        if matrix.ndim != 2 or matrix.shape[1] != query.shape[0]:
-            return {}
-        norms = np.linalg.norm(matrix, axis=1) * query_norm
-        similarities = np.divide(
-            matrix @ query,
-            norms,
-            out=np.zeros(matrix.shape[0], dtype=np.float32),
-            where=norms != 0,
-        )
-        return {
-            question_id: max(0.0, min(1.0, float(score)))
-            for question_id, score in zip(ids, similarities, strict=True)
-        }
-
     def search(self, query: str, *, limit: int = 5) -> SearchResult:
         normalized = normalize_question(query)
         if len(normalized) < 4:
@@ -117,22 +87,7 @@ class QuestionRetriever:
             )
 
         lexical = self._lexical_hits(normalized, max(limit, 8))
-        semantic = self._semantic_scores(normalized)
         by_id = {hit.question.id: hit for hit in lexical}
-        for question_id, semantic_score in semantic.items():
-            if semantic_score < self.settings.candidate_threshold:
-                continue
-            hit = by_id.get(question_id)
-            if hit is None:
-                question = self._by_id.get(question_id)
-                if question is None:
-                    continue
-                hit = SearchHit(question, semantic_score, "semantic")
-                by_id[question_id] = hit
-            hit.semantic_score = semantic_score
-            hit.score = max(hit.score, semantic_score * 0.97)
-            hit.match_method = "hybrid" if hit.lexical_score else "semantic"
-
         candidates = sorted(by_id.values(), key=lambda item: item.score, reverse=True)[:limit]
         if not candidates:
             return SearchResult(

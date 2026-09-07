@@ -24,12 +24,6 @@ class Settings:
     source_docx: Path
     database_path: Path
     expected_count: int
-    api_key: str
-    llm_base_url: str
-    llm_model: str
-    embedding_model: str
-    enable_semantic: bool
-    enable_llm_explanation: bool
     access_token: str
     require_auth: bool
     max_query_chars: int
@@ -55,14 +49,6 @@ class Settings:
             source_docx=source_docx,
             database_path=runtime_dir / "question_bank.db",
             expected_count=max(1, int(os.getenv("QABANK_EXPECTED_COUNT", "4180"))),
-            api_key=os.getenv("DASHSCOPE_API_KEY", "").strip(),
-            llm_base_url=os.getenv(
-                "LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
-            ).strip(),
-            llm_model=os.getenv("LLM_MODEL", "qwen3.8-flash").strip(),
-            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-v4").strip(),
-            enable_semantic=_flag("QABANK_ENABLE_SEMANTIC"),
-            enable_llm_explanation=_flag("QABANK_ENABLE_LLM_EXPLANATION"),
             access_token=os.getenv("QABANK_ACCESS_TOKEN", "").strip(),
             require_auth=_flag("QABANK_REQUIRE_AUTH"),
             max_query_chars=max(100, int(os.getenv("QABANK_MAX_QUERY_CHARS", "2000"))),

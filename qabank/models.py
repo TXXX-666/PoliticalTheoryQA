@@ -32,7 +32,6 @@ class SearchHit:
     score: float
     match_method: str
     lexical_score: float = 0.0
-    semantic_score: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)

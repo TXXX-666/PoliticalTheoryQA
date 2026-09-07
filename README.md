@@ -1,6 +1,6 @@
 # 政治理论题库问答
 
-一个针对 4180 道政治理论题设计的结构化 RAG 检索系统。用户粘贴原题后，系统优先精确匹配题库标准答案；原题有少量改写时使用 FTS5 与模糊检索；配置 Embedding 后可使用语义检索兜底。标准答案始终来自题库数据库，大模型只能生成可选辅助说明。
+一个针对 4180 道政治理论题设计的结构化题库检索系统。用户粘贴原题后，系统优先精确匹配题库标准答案；原题有少量缺字或改写时使用 FTS5 与模糊检索。系统不调用大模型，标准答案始终来自题库数据库。
 
 ## 为什么不是普通长文档 RAG
 
@@ -12,10 +12,8 @@ DOCX
   -> SQLite questions 表 + FTS5 trigram 索引
   -> 原题精确匹配
   -> 全文/模糊检索
-  -> 可选 Embedding 语义检索
   -> 置信度与 Top1/Top2 分差门控
   -> 确定性返回题库标准答案
-  -> 可选 LLM 辅助说明
 ```
 
 ## 主要能力
@@ -26,8 +24,6 @@ DOCX
 - 精确匹配优先，不消耗模型 API；
 - FTS5 trigram + RapidFuzz 处理轻微缺字和改写；
 - 相似题置信度不足时展示候选题，不擅自猜答案；
-- 可选 DashScope `text-embedding-v4` 语义索引；
-- 可选 `qwen3.8-flash` 辅助说明，不能修改标准答案；
 - Streamlit 查询界面、访问令牌、会话级限流和检索诊断；
 - Docker Compose、非 root 容器、Volume 持久化、Nginx 和 HTTPS 部署配置。
 
@@ -55,33 +51,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 .\.venv\Scripts\python.exe -m streamlit run app.py --server.port 8503
 ```
 
-## API 配置
+## 访问配置
 
-复制 `.env.example` 为 `.env`。默认 API Key 为空，精确和模糊检索不依赖大模型。
-
-```env
-DASHSCOPE_API_KEY=
-LLM_MODEL=qwen3.8-flash
-EMBEDDING_MODEL=text-embedding-v4
-QABANK_ENABLE_SEMANTIC=false
-QABANK_ENABLE_LLM_EXPLANATION=false
-```
-
-构建可选语义索引：
-
-```powershell
-.\.venv\Scripts\python.exe scripts\build_embeddings.py
-```
-
-随后将 `QABANK_ENABLE_SEMANTIC=true`。辅助说明需要同时设置 `QABANK_ENABLE_LLM_EXPLANATION=true`。
+复制 `.env.example` 为 `.env`。本地可以关闭鉴权，公网部署必须设置访问密码。系统不需要模型 API Key。
 
 ## 数据边界
 
 - 标准答案来自导入题库，不代表系统对题库内容进行了事实核验；
 - 原题精确查询可以稳定返回数据库记录，改写越大越需要候选确认；
-- LLM 辅助说明不是题库原文，不能覆盖标准答案；
 - 原题重复且答案冲突时，系统必须让用户根据章节选择；
-- 题库 DOCX、运行数据库、API Key 和访问令牌默认不进入 Git。
+- 题库 DOCX、运行数据库和访问令牌默认不进入 Git。
 
 ## 测试
 

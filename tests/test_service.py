@@ -17,7 +17,7 @@ def test_service_returns_database_answer_without_api_key(tmp_path: Path, setting
     assert result["answer"]["answer_options"] == [
         {"letter": "C", "text": "选项丙"}
     ]
-    assert service.stats()["llm_configured"] is False
+    assert service.stats()["question_count"] == 3
 
 
 def test_fixture_is_structurally_valid(tmp_path: Path):
