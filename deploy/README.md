@@ -20,7 +20,7 @@
 
 ```bash
 cd /opt
-git clone <你的 GitHub 仓库地址> political-theory-qa
+git clone https://github.com/TXXX-666/PoliticalTheoryQA.git political-theory-qa
 cd /opt/political-theory-qa
 mkdir -p source
 ```
