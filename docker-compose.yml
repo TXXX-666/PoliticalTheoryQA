@@ -1,0 +1,25 @@
+services:
+  quiz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: political-theory-qa
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      QABANK_RUNTIME_DIR: /app/runtime
+      QABANK_SOURCE_DOCX: /app/source/question_bank.docx
+      QABANK_REQUIRE_AUTH: "true"
+    ports:
+      - "127.0.0.1:8503:8503"
+    volumes:
+      - quiz_runtime:/app/runtime
+      - ./source:/app/source:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+volumes:
+  quiz_runtime:

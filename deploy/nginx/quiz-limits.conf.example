@@ -1,0 +1,2 @@
+limit_req_zone $binary_remote_addr zone=quiz_page:10m rate=60r/m;
+limit_conn_zone $binary_remote_addr zone=quiz_connections:10m;
