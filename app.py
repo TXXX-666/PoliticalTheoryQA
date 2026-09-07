@@ -84,7 +84,7 @@ st.title("政治理论题库问答")
 with st.form("question-form", clear_on_submit=False):
     query = st.text_area(
         "题目",
-        value=st.session_state.get("query_text", ""),
+        key="question_input",
         height=150,
         max_chars=settings.max_query_chars,
         placeholder="粘贴完整题干，也可以连同 A/B/C/D 选项一起粘贴。",
@@ -103,11 +103,11 @@ if submitted:
     elif not query.strip():
         st.warning("请输入题目。")
     else:
-        st.session_state["query_text"] = query
         st.session_state["search_result"] = service.ask(
             query, limit=candidate_count
         )
         st.session_state.pop("selected_question_id", None)
+        st.session_state.pop("candidate_question_id", None)
 
 
 def render_answer(answer: dict) -> None:
@@ -144,6 +144,7 @@ if result:
         selected_id = st.radio(
             "请选择你输入的原题",
             options=[item["question"]["id"] for item in candidates],
+            key="candidate_question_id",
             format_func=lambda question_id: next(
                 f'第 {item["question"]["id"]} 题 · '
                 f'{item["question"]["question"][:90]}'
